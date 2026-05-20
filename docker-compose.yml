@@ -1,0 +1,72 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-assetra}
+      POSTGRES_USER:     ${POSTGRES_USER:-assetra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assetra_poc}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-assetra}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # source-db mirrors the Steampipe SQL interface: CSV files are loaded into
+  # a 'csv' schema so the app queries them identically to real Steampipe.
+  # To switch to live Steampipe: remove this service and point STEAMPIPE_HOST/PORT
+  # at a running Steampipe instance (port 9193) with the CSV plugin installed.
+  source-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       source
+      POSTGRES_USER:     source
+      POSTGRES_PASSWORD: source
+    volumes:
+      - ./source-db/init.sh:/docker-entrypoint-initdb.d/01_init_csv.sh:ro
+      - ./data:/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U source -d source -c 'SELECT 1 FROM csv.mock_ec2_instances LIMIT 1' -q > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV:            ${APP_ENV:-development}
+      LOG_LEVEL:          ${LOG_LEVEL:-info}
+      POSTGRES_HOST:      postgres
+      POSTGRES_PORT:      "5432"
+      POSTGRES_DB:        ${POSTGRES_DB:-assetra}
+      POSTGRES_USER:      ${POSTGRES_USER:-assetra}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:-assetra_poc}
+      STEAMPIPE_HOST:     source-db
+      STEAMPIPE_PORT:     "5432"
+      STEAMPIPE_DB:       source
+      STEAMPIPE_USER:     source
+      STEAMPIPE_PASSWORD: source
+      DATA_DIR:           /data
+      MIGRATIONS_DIR:     /migrations
+    volumes:
+      - ./data:/data:ro
+      - ./migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      source-db:
+        condition: service_healthy
+    command: ["pipeline"]
+
+volumes:
+  postgres_data:

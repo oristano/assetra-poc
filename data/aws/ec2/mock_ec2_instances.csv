@@ -1,0 +1,4 @@
+instance_id,name,state,instance_type,private_ip,public_ip,platform,region,account_id,tags_json
+i-001,web-server-1,running,t3.medium,10.0.1.10,54.210.100.1,Linux,us-east-1,123456789012,"{""Env"":""prod"",""Team"":""platform""}"
+i-002,db-server-1,running,r5.large,10.0.2.20,,Linux,us-east-1,123456789012,"{""Env"":""prod"",""Team"":""data""}"
+i-003,backup-server,stopped,t2.micro,10.0.3.30,,Linux,us-west-2,123456789012,"{""Env"":""staging"",""Team"":""ops""}"
