@@ -11,3 +11,5 @@ FROM ocsf_findings
 WHERE customer_id = '12345'
 GROUP BY resource_uid, resource_name, region, account_id, severity
 ORDER BY MAX(severity_id) DESC, resource_uid;
+
+-- New comment
